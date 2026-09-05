@@ -64,6 +64,10 @@ if (empty($_ENV['APP_MAINTENANCE_DRIVER']) || $_ENV['APP_MAINTENANCE_DRIVER'] ==
     putenv('APP_MAINTENANCE_DRIVER=file');
     $_ENV['APP_MAINTENANCE_DRIVER'] = 'file';
 }
+if (empty($_ENV['SESSION_LIFETIME']) || (int) $_ENV['SESSION_LIFETIME'] <= 0) {
+    putenv('SESSION_LIFETIME=120');
+    $_ENV['SESSION_LIFETIME'] = 120;
+}
 
 try {
     // Forward the request to Laravel's public entry point
