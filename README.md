@@ -23,13 +23,30 @@ npm run build                               # or: npm run dev
 php artisan serve --port=8321
 ```
 
-Demo accounts (password `password`):
+Optional API keys (the app works without them and says so in the UI):
 
-| Rôle        | Email                    | Peut faire                                              |
-|-------------|--------------------------|---------------------------------------------------------|
-| Admin       | `admin@renovation.fr`    | tout, dont `/admin` (paramètres, produits, utilisateurs) |
-| Media buyer | `media@renovation.fr`    | créas, campagnes, landing pages, performances            |
-| Creative    | `studio@renovation.fr`   | consulter les briefs, éditer la créa et la copy          |
+```dotenv
+ANTHROPIC_API_KEY=   # or GEMINI_API_KEY / OPENAI_API_KEY — writes the generation prompts
+GEMINI_API_KEY=      # also powers Veo video generation
+```
+
+Demo accounts — password `password`. **There is one role: admin.** Everyone who can log in can
+do everything.
+
+| Email                    |
+|--------------------------|
+| `admin@renovation.fr`    |
+| `claire@renovation.fr`   |
+| `karim@renovation.fr`    |
+
+## The product loop
+
+```
+🌳 explore the tree → 💡 spot an untested branch → 🎨 create the idea
+   → 🤖 generate the prompt → 👤 review → ✓ validate
+   → 🎬 generate the visual → 🚀 ready → 📣 campaign → 📊 performance → 🏆 winner
+   → 🌳 next branch
+```
 
 ## The five ideas the app is built on
 
@@ -50,12 +67,65 @@ Demo accounts (password `password`):
    chaudière" as a new dimension takes no code change.
 5. **A cheap lead is not a good lead.** The automatic performance rating is computed from the
    **cost per qualified lead**, not the CPL, and only once a creative has spent enough
-   (`config/creative.php`). A media buyer can always override it manually.
+   (`config/creative.php`). It can always be overridden manually.
+
+## Two layers: idea, then execution
+
+The tree says *what* to test; the creative record says *how* the test is run.
+
+- **Layer 1 — the idea.** `/creatives/new` is a five-screen wizard: product → problem → audience →
+  angle → a plain-language summary of what the ad should make the viewer feel and do. No copy, no
+  asset, no UTM. Creating from a branch pre-fills every step.
+- **Layer 2 — the execution.** Hook, copy, visual, landing page, UTM, campaign, performance. It
+  lives on the creative page and in `/creatives/{id}/edit`.
+
+**Create variation** is the fastest loop: take a winner, change *one* variable (woman → man,
+government aid → comfort, 60–69 → 50–59), keep everything else. That is the experimentation engine.
+
+## AI: from idea to generation prompt
+
+`/ai-studio` holds the admin-managed list of AI models (provider + model id) and the prompt
+templates. Nothing is hard-coded to one provider: Claude, Gemini and OpenAI each have a small
+`PromptProvider`, and a model whose API key is missing says so instead of pretending.
+
+On a creative: read the **Creative Outcome**, pick a model, generate the prompt, edit it, then
+**validate** it. Editing a validated prompt sends it back to draft — the reviewed text is the one
+that gets used.
+
+## Generation: Google Veo and Google Flow
+
+| Provider | Status | What it does |
+|---|---|---|
+| **Google Veo (Gemini API)** | fully implemented | `predictLongRunning` → poll the operation → retrieve the file. Google deletes generated files after ~2 days, so the app keeps a local copy. |
+| **Google Flow** | manual handoff | Flow has **no public generation API** (checked September 2026). The app hands over the validated prompt, you generate in Flow, and you attach the result. |
+
+Flow is Google's consumer app over the Veo models; the officially supported programmatic route to
+those models is the Gemini API, which is why Veo is the implemented one. Unofficial third-party
+Flow wrappers exist and are deliberately not used. **A generation is never recorded as having
+happened unless it did** — the Flow route sits in `awaiting_manual` until an asset is attached.
+
+Generation states: `queued → generating → completed | failed`, plus `awaiting_manual` for Flow.
+Every attempt keeps its prompt version, model, provider, external operation id, asset and timestamps,
+so two generations of the same idea can be compared later.
+
+## Meta: not built
+
+There is no Meta integration, no OAuth, no synthetic Meta data. `App\Services\Performance` defines
+the `PerformanceProvider` interface with the implemented `ManualPerformanceProvider` and a declared
+`MetaAdsPerformanceProvider` that reports itself unavailable. When Meta is built, it fills that class
+and maps ad-level spend onto creatives through the naming convention and `utm_content` the app
+already generates.
 
 ## Screens
 
-`/login` · `/dashboard` · `/creative-tree` · `/creatives` · `/creatives/new` · `/creatives/{id}`
-`/campaigns` · `/campaigns/{id}` · `/landing-pages` · `/performance` · `/admin`
+`/` redirects to the tree — it is the product.
+
+`/creative-tree` · `/creatives` · `/creatives/new` · `/creatives/{id}` · `/ai-studio`
+`/campaigns` · `/campaigns/{id}` · `/landing-pages` · `/performance` · `/dashboard` · `/admin`
+
+The tree is a **column explorer**: one column per axis, walk left to right, tested branches show
+their counts and cost per qualified lead, untested ones are greyed with a **+ Créer** button that
+opens the wizard pre-filled.
 
 ## Naming convention
 
@@ -88,7 +158,7 @@ cost per qualified / appointment / confirmed / sale, ROAS — is derived in `App
 ## Tests
 
 ```bash
-php artisan test          # 28 tests — uses the fr_renovation_creative_os_test database
+php artisan test          # 45 tests — uses the fr_renovation_creative_os_test database
 ./vendor/bin/pint --test  # code style
 npm run build             # frontend build
 ```
@@ -97,7 +167,7 @@ Create the test database once with `createdb fr_renovation_creative_os_test`.
 
 ## Deliberately not in V1
 
-Meta/Google/TikTok APIs, automatic campaign creation or ad publishing, AI creative generation,
-billing, CRM, call-centre software, attribution modelling, multi-tenant SaaS, complex permissions.
+Meta/Google/TikTok ad APIs, automatic campaign creation or ad publishing, billing, CRM,
+call-centre software, attribution modelling, multi-tenant SaaS, roles and permissions.
 The schema is shaped so those can be added later without a rewrite.
 # escalarlead-lab
