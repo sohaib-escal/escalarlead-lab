@@ -57,6 +57,10 @@ if (empty($_ENV['DB_CONNECTION']) || in_array($_ENV['DB_CONNECTION'], ['psql', '
     putenv('DB_CONNECTION=pgsql');
     $_ENV['DB_CONNECTION'] = 'pgsql';
 }
+if (empty($_ENV['APP_MAINTENANCE_DRIVER']) || $_ENV['APP_MAINTENANCE_DRIVER'] === '') {
+    putenv('APP_MAINTENANCE_DRIVER=file');
+    $_ENV['APP_MAINTENANCE_DRIVER'] = 'file';
+}
 
 try {
     // Forward the request to Laravel's public entry point
