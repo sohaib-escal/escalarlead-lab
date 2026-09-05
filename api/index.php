@@ -40,6 +40,9 @@ $_ENV['APP_ROUTES_CACHE'] = '/tmp/storage/bootstrap/cache/routes-v7.php';
 $_ENV['APP_EVENTS_CACHE'] = '/tmp/storage/bootstrap/cache/events.php';
 $_ENV['LOG_CHANNEL'] = 'stderr';
 
+$_SERVER['HTTPS'] = 'on';
+$_SERVER['SERVER_PORT'] = 443;
+
 // Ensure driver defaults if not set or empty
 if (empty($_ENV['SESSION_DRIVER']) || $_ENV['SESSION_DRIVER'] === '') {
     putenv('SESSION_DRIVER=database');
