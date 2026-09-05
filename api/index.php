@@ -29,6 +29,7 @@ putenv('APP_PACKAGES_CACHE=/tmp/storage/bootstrap/cache/packages.php');
 putenv('APP_CONFIG_CACHE=/tmp/storage/bootstrap/cache/config.php');
 putenv('APP_ROUTES_CACHE=/tmp/storage/bootstrap/cache/routes-v7.php');
 putenv('APP_EVENTS_CACHE=/tmp/storage/bootstrap/cache/events.php');
+putenv('LOG_CHANNEL=stderr');
 
 $_ENV['APP_STORAGE'] = '/tmp/storage';
 $_ENV['VIEW_COMPILED_PATH'] = '/tmp/storage/framework/views';
@@ -37,6 +38,7 @@ $_ENV['APP_PACKAGES_CACHE'] = '/tmp/storage/bootstrap/cache/packages.php';
 $_ENV['APP_CONFIG_CACHE'] = '/tmp/storage/bootstrap/cache/config.php';
 $_ENV['APP_ROUTES_CACHE'] = '/tmp/storage/bootstrap/cache/routes-v7.php';
 $_ENV['APP_EVENTS_CACHE'] = '/tmp/storage/bootstrap/cache/events.php';
+$_ENV['LOG_CHANNEL'] = 'stderr';
 
 try {
     // Forward the request to Laravel's public entry point
