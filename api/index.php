@@ -70,6 +70,10 @@ if (empty($_ENV['SESSION_LIFETIME']) || (int) $_ENV['SESSION_LIFETIME'] <= 0) {
     putenv('SESSION_LIFETIME=120');
     $_ENV['SESSION_LIFETIME'] = 120;
 }
+if (empty($_ENV['BCRYPT_ROUNDS']) || (int) $_ENV['BCRYPT_ROUNDS'] < 4 || (int) $_ENV['BCRYPT_ROUNDS'] > 31) {
+    putenv('BCRYPT_ROUNDS=12');
+    $_ENV['BCRYPT_ROUNDS'] = 12;
+}
 
 try {
     // Forward the request to Laravel's public entry point
