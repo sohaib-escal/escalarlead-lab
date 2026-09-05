@@ -40,6 +40,24 @@ $_ENV['APP_ROUTES_CACHE'] = '/tmp/storage/bootstrap/cache/routes-v7.php';
 $_ENV['APP_EVENTS_CACHE'] = '/tmp/storage/bootstrap/cache/events.php';
 $_ENV['LOG_CHANNEL'] = 'stderr';
 
+// Ensure driver defaults if not set or empty
+if (empty($_ENV['SESSION_DRIVER']) || $_ENV['SESSION_DRIVER'] === '') {
+    putenv('SESSION_DRIVER=database');
+    $_ENV['SESSION_DRIVER'] = 'database';
+}
+if (empty($_ENV['CACHE_STORE']) || $_ENV['CACHE_STORE'] === '') {
+    putenv('CACHE_STORE=database');
+    $_ENV['CACHE_STORE'] = 'database';
+}
+if (empty($_ENV['QUEUE_CONNECTION']) || $_ENV['QUEUE_CONNECTION'] === '') {
+    putenv('QUEUE_CONNECTION=database');
+    $_ENV['QUEUE_CONNECTION'] = 'database';
+}
+if (empty($_ENV['DB_CONNECTION']) || $_ENV['DB_CONNECTION'] === '') {
+    putenv('DB_CONNECTION=pgsql');
+    $_ENV['DB_CONNECTION'] = 'pgsql';
+}
+
 try {
     // Forward the request to Laravel's public entry point
     require __DIR__ . '/../public/index.php';
