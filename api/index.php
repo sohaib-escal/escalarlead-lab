@@ -53,7 +53,7 @@ if (empty($_ENV['QUEUE_CONNECTION']) || $_ENV['QUEUE_CONNECTION'] === '') {
     putenv('QUEUE_CONNECTION=database');
     $_ENV['QUEUE_CONNECTION'] = 'database';
 }
-if (empty($_ENV['DB_CONNECTION']) || $_ENV['DB_CONNECTION'] === '') {
+if (empty($_ENV['DB_CONNECTION']) || in_array($_ENV['DB_CONNECTION'], ['psql', 'postgres', 'postgresql', ''])) {
     putenv('DB_CONNECTION=pgsql');
     $_ENV['DB_CONNECTION'] = 'pgsql';
 }
