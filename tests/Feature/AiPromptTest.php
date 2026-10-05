@@ -74,7 +74,12 @@ class AiPromptTest extends TestCase
                 return true;
             }
 
-            public function complete(string $system, string $user, string $modelId): PromptCompletion
+            public function supportsImages(): bool
+            {
+                return true;
+            }
+
+            public function complete(string $system, string $user, string $modelId, array $images = []): PromptCompletion
             {
                 self::$received = compact('system', 'user', 'modelId');
 
@@ -248,7 +253,12 @@ class AiPromptTest extends TestCase
                         return false;
                     }
 
-                    public function complete(string $system, string $user, string $modelId): PromptCompletion
+                    public function supportsImages(): bool
+                    {
+                        return true;
+                    }
+
+                    public function complete(string $system, string $user, string $modelId, array $images = []): PromptCompletion
                     {
                         throw new \RuntimeException('Clé API manquante.');
                     }

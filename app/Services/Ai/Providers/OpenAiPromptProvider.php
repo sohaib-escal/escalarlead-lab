@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai\Providers;
 
+use App\Services\Ai\ImageInput;
 use App\Services\Ai\PromptCompletion;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -23,7 +24,15 @@ class OpenAiPromptProvider implements PromptProvider
         return filled(config('ai.providers.openai.api_key'));
     }
 
-    public function complete(string $system, string $user, string $modelId): PromptCompletion
+    public function supportsImages(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @param  array<int, ImageInput>  $images
+     */
+    public function complete(string $system, string $user, string $modelId, array $images = []): PromptCompletion
     {
         if (! $this->isConfigured()) {
             throw new RuntimeException('Clé API OpenAI manquante (OPENAI_API_KEY).');
@@ -36,7 +45,16 @@ class OpenAiPromptProvider implements PromptProvider
                 'max_completion_tokens' => config('ai.max_output_tokens'),
                 'messages' => [
                     ['role' => 'system', 'content' => $system],
-                    ['role' => 'user', 'content' => $user],
+                    ['role' => 'user', 'content' => $images === []
+                        ? $user
+                        : [
+                            ['type' => 'text', 'text' => $user],
+                            ...array_map(fn (ImageInput $image) => [
+                                'type' => 'image_url',
+                                'image_url' => ['url' => $image->dataUri()],
+                            ], $images),
+                        ],
+                    ],
                 ],
             ]);
 

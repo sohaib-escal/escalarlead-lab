@@ -297,7 +297,7 @@ class TaxonomySeeder extends Seeder
         $rows = [
             ['Claude Opus 5', 'anthropic', 'claude-opus-5', true, 'Modèle par défaut pour rédiger les prompts de génération.'],
             ['Claude Sonnet 5', 'anthropic', 'claude-sonnet-5', false, 'Plus rapide, pour les itérations en volume.'],
-            ['Gemini 2.5 Pro', 'gemini', 'gemini-2.5-pro', false, 'Utile quand la génération se fait ensuite avec Veo / Flow.'],
+            ['Gemini 3.5 Flash', 'gemini', 'gemini-3.5-flash', false, 'Rapide et économique — bon défaut pour l\'agent WhatsApp.'],
             ['GPT-5', 'openai', 'gpt-5', false, null],
         ];
 

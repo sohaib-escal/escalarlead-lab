@@ -30,7 +30,7 @@ class PromptProviderRegistry
     }
 
     /**
-     * @return array<int, array{key:string,label:string,configured:bool}>
+     * @return array<int, array{key:string,label:string,configured:bool,supports_images:bool}>
      */
     public function status(): array
     {
@@ -39,6 +39,7 @@ class PromptProviderRegistry
                 'key' => $provider->key(),
                 'label' => $provider->label(),
                 'configured' => $provider->isConfigured(),
+                'supports_images' => $provider->supportsImages(),
             ])
             ->values()
             ->all();

@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai\Providers;
 
+use App\Services\Ai\ImageInput;
 use App\Services\Ai\PromptCompletion;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -23,7 +24,15 @@ class GeminiPromptProvider implements PromptProvider
         return filled(config('ai.providers.gemini.api_key'));
     }
 
-    public function complete(string $system, string $user, string $modelId): PromptCompletion
+    public function supportsImages(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @param  array<int, ImageInput>  $images
+     */
+    public function complete(string $system, string $user, string $modelId, array $images = []): PromptCompletion
     {
         if (! $this->isConfigured()) {
             throw new RuntimeException('Clé API Gemini manquante (GEMINI_API_KEY).');
@@ -33,7 +42,12 @@ class GeminiPromptProvider implements PromptProvider
             ->withHeaders(['x-goog-api-key' => config('ai.providers.gemini.api_key')])
             ->post(rtrim(config('ai.providers.gemini.base_url'), '/')."/models/{$modelId}:generateContent", [
                 'system_instruction' => ['parts' => [['text' => $system]]],
-                'contents' => [['role' => 'user', 'parts' => [['text' => $user]]]],
+                'contents' => [['role' => 'user', 'parts' => [
+                    ['text' => $user],
+                    ...array_map(fn (ImageInput $image) => [
+                        'inline_data' => ['mime_type' => $image->mime, 'data' => $image->base64],
+                    ], $images),
+                ]]],
                 'generationConfig' => ['maxOutputTokens' => config('ai.max_output_tokens')],
             ]);
 

@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AgentGuardrail;
 use App\Models\AiModel;
 use App\Models\Channel;
 use App\Models\CreativeStatus;
 use App\Models\CtaOption;
+use App\Models\KnowledgePassage;
 use App\Models\LandingPageType;
 use App\Models\ParameterCategory;
 use App\Models\ParameterValue;
@@ -38,6 +40,8 @@ class AdminController extends Controller
         'users' => User::class,
         'ai-models' => AiModel::class,
         'prompt-templates' => PromptTemplate::class,
+        'knowledge-passages' => KnowledgePassage::class,
+        'agent-guardrails' => AgentGuardrail::class,
     ];
 
     public function index(): Response
@@ -79,7 +83,7 @@ class AdminController extends Controller
         $model = $this->modelFor($resource);
         $data = $this->validated($request, $resource);
 
-        $record = $model::create($this->withSlug($resource, $data));
+        $record = $model::create($this->withEditor($resource, $this->withSlug($resource, $data), $request));
         $this->enforceSingleDefault($resource, $record);
 
         return back()->with('success', 'Élément ajouté.');
@@ -95,7 +99,7 @@ class AdminController extends Controller
             unset($data['password']);
         }
 
-        $record->update($this->withSlug($resource, $data, $record));
+        $record->update($this->withEditor($resource, $this->withSlug($resource, $data, $record), $request));
         $this->enforceSingleDefault($resource, $record);
 
         return back()->with('success', 'Élément mis à jour.');
@@ -114,6 +118,19 @@ class AdminController extends Controller
         $record->delete();
 
         return back()->with('success', 'Élément supprimé.');
+    }
+
+    /**
+     * Knowledge is edited often and by more than one person — record who.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function withEditor(string $resource, array $data, Request $request): array
+    {
+        return in_array($resource, ['knowledge-passages', 'agent-guardrails'], true)
+            ? [...$data, 'updated_by' => $request->user()?->id]
+            : $data;
     }
 
     /**
@@ -284,6 +301,25 @@ class AdminController extends Controller
                 'is_active' => ['boolean'],
                 'position' => ['nullable', 'integer'],
             ]),
+            'knowledge-passages' => $request->validate([
+                'title' => ['required', 'string', 'max:180'],
+                'body' => ['required', 'string', 'max:4000'],
+                'keywords' => ['nullable', 'string', 'max:1000'],
+                'problem_family' => ['nullable', Rule::in(array_keys(config('knowledge.families')))],
+                'content_type' => ['required', Rule::in(array_keys(config('knowledge.content_types')))],
+                'product_id' => ['nullable', 'exists:products,id'],
+                'never_claim' => ['nullable', 'string', 'max:500'],
+                'source' => ['nullable', 'string', 'max:180'],
+                'position' => ['nullable', 'integer'],
+                'is_active' => ['boolean'],
+            ]),
+            'agent-guardrails' => $request->validate([
+                'name' => ['required', 'string', 'max:180'],
+                'kind' => ['required', Rule::in(array_keys(AgentGuardrail::KINDS))],
+                'body' => ['required', 'string', 'max:1000'],
+                'position' => ['nullable', 'integer'],
+                'is_active' => ['boolean'],
+            ]),
             'prompt-templates' => $request->validate([
                 'name' => ['required', 'string', 'max:120'],
                 'target_format' => ['required', 'in:video,image,any'],
@@ -304,14 +340,14 @@ class AdminController extends Controller
      */
     private function withSlug(string $resource, array $data, ?Model $record = null): array
     {
-        $source = $data['name'] ?? $data['label'] ?? null;
+        $source = $data['name'] ?? $data['label'] ?? $data['title'] ?? null;
 
         if (! $source) {
             return $data;
         }
 
         return match ($resource) {
-            'products', 'channels', 'parameter-categories', 'creative-statuses', 'cta-options', 'landing-page-types', 'prompt-templates' => [
+            'products', 'channels', 'parameter-categories', 'creative-statuses', 'cta-options', 'landing-page-types', 'prompt-templates', 'knowledge-passages', 'agent-guardrails' => [
                 ...$data,
                 'slug' => $record?->slug ?: Str::slug($source),
             ],

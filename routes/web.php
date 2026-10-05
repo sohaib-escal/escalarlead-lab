@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\AgentConsoleController;
 use App\Http\Controllers\AiStudioController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CampaignController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\CreativeGenerationController;
 use App\Http\Controllers\CreativePromptController;
 use App\Http\Controllers\CreativeTreeController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\KnowledgeController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\PerformanceController;
 use Illuminate\Support\Facades\Route;
@@ -54,6 +56,12 @@ Route::middleware('auth')->group(function () {
     Route::delete('/generations/{generation}', [CreativeGenerationController::class, 'destroy'])->name('generations.destroy');
 
     Route::get('/ai-studio', AiStudioController::class)->name('ai-studio');
+    Route::get('/knowledge', [KnowledgeController::class, 'index'])->name('knowledge');
+
+    // Talk to the agent without WhatsApp in the way.
+    Route::get('/agent', [AgentConsoleController::class, 'index'])->name('agent');
+    Route::post('/agent', [AgentConsoleController::class, 'store'])->name('agent.store');
+    Route::post('/agent/reset', [AgentConsoleController::class, 'reset'])->name('agent.reset');
 
     Route::get('/campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
     Route::post('/campaigns', [CampaignController::class, 'store'])->name('campaigns.store');

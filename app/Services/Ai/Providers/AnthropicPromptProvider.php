@@ -3,6 +3,7 @@
 namespace App\Services\Ai\Providers;
 
 use Anthropic\Client;
+use App\Services\Ai\ImageInput;
 use App\Services\Ai\PromptCompletion;
 use RuntimeException;
 
@@ -23,7 +24,15 @@ class AnthropicPromptProvider implements PromptProvider
         return filled(config('ai.providers.anthropic.api_key'));
     }
 
-    public function complete(string $system, string $user, string $modelId): PromptCompletion
+    public function supportsImages(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @param  array<int, ImageInput>  $images
+     */
+    public function complete(string $system, string $user, string $modelId, array $images = []): PromptCompletion
     {
         if (! $this->isConfigured()) {
             throw new RuntimeException('Clé API Anthropic manquante (ANTHROPIC_API_KEY).');
@@ -35,7 +44,16 @@ class AnthropicPromptProvider implements PromptProvider
             model: $modelId,
             maxTokens: config('ai.max_output_tokens'),
             system: [['type' => 'text', 'text' => $system]],
-            messages: [['role' => 'user', 'content' => $user]],
+            messages: [['role' => 'user', 'content' => $images === []
+                ? $user
+                : [
+                    ['type' => 'text', 'text' => $user],
+                    ...array_map(fn (ImageInput $image) => [
+                        'type' => 'image',
+                        'source' => ['type' => 'base64', 'media_type' => $image->mime, 'data' => $image->base64],
+                    ], $images),
+                ],
+            ]],
         );
 
         $text = '';

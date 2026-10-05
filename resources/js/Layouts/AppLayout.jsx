@@ -7,6 +7,8 @@ const NAV = [
     { href: '/campaigns', label: 'Campagnes', icon: '📣' },
     { href: '/performance', label: 'Performance', icon: '📊' },
     { href: '/ai-studio', label: 'AI Studio', icon: '🤖' },
+    { href: '/agent', label: 'Tester l\'agent', icon: '💬' },
+    { href: '/knowledge', label: 'Connaissances', icon: '📚' },
     { href: '/dashboard', label: 'Aperçu', icon: '👁️' },
     { href: '/admin', label: 'Admin', icon: '⚙️' },
 ];

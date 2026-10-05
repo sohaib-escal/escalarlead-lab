@@ -16,7 +16,7 @@ $storageDirs = [
 ];
 
 foreach ($storageDirs as $dir) {
-    if (!is_dir($dir)) {
+    if (! is_dir($dir)) {
         mkdir($dir, 0777, true);
     }
 }
@@ -77,12 +77,12 @@ if (empty($_ENV['BCRYPT_ROUNDS']) || (int) $_ENV['BCRYPT_ROUNDS'] < 4 || (int) $
 
 try {
     // Forward the request to Laravel's public entry point
-    require __DIR__ . '/../public/index.php';
-} catch (\Throwable $e) {
+    require __DIR__.'/../public/index.php';
+} catch (Throwable $e) {
     http_response_code(500);
     echo '<!DOCTYPE html><html><head><title>Application Error</title><style>body{font-family:sans-serif;padding:2rem;background:#f8fafc;color:#1e293b}pre{background:#0f172a;color:#f8fafc;padding:1rem;border-radius:8px;overflow:auto}</style></head><body>';
     echo '<h1>Application Error</h1>';
-    echo '<p><strong>' . htmlspecialchars($e->getMessage()) . '</strong> in ' . htmlspecialchars($e->getFile()) . ':' . $e->getLine() . '</p>';
-    echo '<pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+    echo '<p><strong>'.htmlspecialchars($e->getMessage()).'</strong> in '.htmlspecialchars($e->getFile()).':'.$e->getLine().'</p>';
+    echo '<pre>'.htmlspecialchars($e->getTraceAsString()).'</pre>';
     echo '</body></html>';
 }

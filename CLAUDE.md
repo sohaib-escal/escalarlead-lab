@@ -14,6 +14,10 @@ Laravel 13 + PostgreSQL + Inertia + React 19 + Tailwind v4.
   - `Generation/` — `GenerationProvider` + `GoogleVeoProvider` (real) and `GoogleFlowProvider`
     (manual handoff), behind `GenerationProviderRegistry`.
   - `Performance/` — `PerformanceProvider`; manual is implemented, Meta is a declared placeholder.
+  - `Agent/` — the conversation turn: `ConversationAgent` (orchestration),
+    `AgentPromptBuilder`, `LeadState` (required fields, next target), `LeadSummariser`.
+  - `Knowledge/` — the WhatsApp agent's RAG: `KnowledgeRetriever` (interface) +
+    `PostgresKnowledgeRetriever`, and `GuardrailComposer` for the standing instructions.
   - `CreativeTree` builds the tree and the untested branches (the roadmap).
   - `CreativeNaming` generates/uniquifies the human-readable creative ID.
   - `UtmBuilder` suggests UTM values and keeps them in sync.
@@ -48,6 +52,103 @@ Laravel 13 + PostgreSQL + Inertia + React 19 + Tailwind v4.
   says so. Never imply a verdict from the fact that something was launched.
 - **Never fake an integration.** If a provider cannot do something, its `capabilities()` says so and
   the UI shows it. A generation only reaches `completed` when a real asset exists.
+
+## The knowledge system (WhatsApp agent)
+
+See `docs/WHATSAPP-AGENT-BRIEF.md` §5. Two kinds of knowledge, deliberately not the same mechanism:
+
+- **`knowledge_passages` is retrieved.** Tag-first filtering on `problem_family`, then French
+  full-text ranking. No embeddings and no `pgvector`: the corpus is ~45 short passages, so ranking
+  is not the bottleneck, and it keeps homeowner messages away from a third-party embedding API.
+  Swapping in embeddings later is one container binding in `KnowledgeServiceProvider`.
+- **`agent_guardrails` is never retrieved.** Persona, tone and the never-claim list go into the
+  system prompt on every turn. A compliance rule that is only sometimes recalled is worse than none.
+  Do not cache this block — a stale guardrail is the exact failure mode to avoid.
+
+Three Postgres details that are load-bearing:
+
+- `unaccent()` is only STABLE, so it cannot be used in a generated column or index. The migration
+  creates an IMMUTABLE `f_unaccent()` wrapper; the `search_vector` column depends on it.
+- `plainto_tsquery` joins terms with AND, which never matches a conversational sentence. The
+  retriever builds an OR query from `unnest(to_tsvector(...))` and **drops lexemes of 1–2 chars** —
+  otherwise « à » unaccents to a bare `a` that matches every passage containing "difficile à chauffer".
+- Eligibility requires a hit in title or keywords (`ts_filter(search_vector, '{a,b}')`). An
+  incidental body mention is not a match. Titles are topical labels, never customer quotes: a quoted
+  sentence puts its stop-words at the highest search weight.
+
+Known limitation: French stemming collides « aider » with « aide », so "ça peut aider ?" can surface
+the state-aid passage. Measure before reaching for embeddings; the guardrails contain the risk.
+
+## The conversation agent
+
+One inbound message in, one reply out — `ConversationAgent::handle()`. The model does exactly two
+things: read what the homeowner just said, and write the next sentence. Everything that *decides*
+anything is code: which field to chase (`LeadState::nextTarget()`), when a lead is complete, when a
+human takes over, what the summary says.
+
+- One LLM call per turn returns JSON with `extracted`, `taxonomy`, `reply`, `handoff_requested`,
+  `opted_out`. Splitting extraction from composition would double the cost to re-send the same
+  context twice.
+- A reply over 240 chars or containing two questions is regenerated once, then replaced with a safe
+  templated question. A wall of text is never sent to a homeowner.
+- A `value_slug` the model invented is never written as a fact — it goes to `leads.raw_notes`, so
+  nothing the homeowner said is lost.
+- `/agent` is the test console: same retrieval, same prompt, same rules, no WhatsApp. It shows the
+  working (retrieved passages, extracted fields, lead state) because testing a conversation without
+  that is guesswork.
+- With no API key the console says so and refuses to run. It never fakes a reply.
+
+### Photos
+
+`PromptProvider::complete()` takes an optional `ImageInput[]`; all three providers implement it
+(Gemini `inline_data`, Anthropic image blocks, OpenAI `image_url` data URIs) and declare
+`supportsImages()`. A provider that cannot read images gets none sent, and the inbound message is
+flagged `ignored_by_provider` — the photo is never silently dropped.
+
+A photo turn is the highest-risk moment in the conversation: a picture of black stains invites a
+confident diagnosis. `AgentPromptBuilder::photoInstructions()` forces the shape — say what is
+visible, give **at least two** possible causes, state that a photo cannot conclude, then ask one
+question — and the seeded guardrails forbid asserting a cause, estimating gravity/cost/danger, or
+claiming to recognise a brand or material. Image turns get a wider reply budget
+(`reply.max_chars_with_image`) because that shape does not fit in 240 characters.
+
+What the model saw is written to `leads.raw_notes` as `Photo : …` — it is evidence about the home,
+not a transient. `ImageInput` carries an optional `url` so a stored upload today, and a WhatsApp
+media URL later, both display in the thread.
+
+Two bugs worth not reintroducing: reading `$conversation->lead` caches a null relation (use
+`lead()->firstOrCreate()`), and the summary must be written *after* the status update or it always
+describes the previous turn.
+
+## The gateway seam
+
+`POST /api/agent/turn` is how the WhatsApp gateway (zailer) talks to the agent — see
+`docs/AGENT-API.md`. HMAC-signed both ways with `AGENT_API_SECRET`, timestamped against replay, and
+**503 when no secret is configured**; there is no unauthenticated mode for an endpoint that creates
+leads and spends model credits.
+
+**Prefer the async path.** With a `callback_url` the turn is queued and the request returns 202 in
+under a second; the reply is posted back signed when it is ready. This is not a preference — a real
+Gemini turn measured 20s, and a synchronous call blew PHP's 30s limit outright. Sync (no callback)
+exists for the console and quick tests only, and the caller owns the timeout.
+
+Requires `php artisan queue:work`. Without a worker, queued turns never run and no callback is sent.
+
+`ProcessAgentTurn` is locked per conversation (`WithoutOverlapping`), so two fast messages from the
+same person are answered in order rather than interleaved, and `failed()` still posts a callback —
+the gateway is never left waiting for one that is not coming.
+
+Idempotency is `message.id` → `conversation_messages.external_id` (unique). A retry replays the
+original reply with no second model charge. One subtlety: an inbound recorded with **no reply after
+it** means the first attempt was interrupted, so it is genuinely retried rather than replayed as
+silence.
+
+Attribution: `creative_reference` is the reliable path; failing that a reference-shaped string
+anywhere in the CTWA `referral` payload is matched. Unmatched means null plus the raw payload kept —
+never a guess, because a wrong attribution credits the wrong branch of the tree.
+
+Still to build: zailer's side (webhook receipt, media download, sending, the 24-hour window). The
+agent is transport-agnostic and needs no changes for it.
 
 ## The product loop
 
